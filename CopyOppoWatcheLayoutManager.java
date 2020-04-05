@@ -17,8 +17,8 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
     private final String TAG = "MyLayout";
     private int itemHSize = -1;
     private int itemWSize = -1;
-    private int hCound = 4;
-    private int vCount = 4;
+    private int hCound = 3;
+    private int vCount = 0;
     private int screenlayoutCount = 0;
     private int mvOffsetCount = 0;
 
@@ -51,13 +51,16 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
         detachAndScrapAttachedViews(recycler);
         mLastItemPosition = getItemCount() - 1;
         itemWSize = getHorizontalSpace() / hCound;
-        itemHSize = itemWSize;
+
         if (vCount == 0) {
             vCount = getVerticalSpace() / itemWSize;
+            itemHSize = itemWSize;
             mSetOffset = itemHSize;
         } else {
-            itemHSize = getVerticalSpace() / vCount;
-            mSetOffset = itemHSize;
+            if (itemHSize == 0) {
+                itemHSize = getVerticalSpace() / vCount;
+                mSetOffset = itemHSize;
+            }
         }
         mSetOffset = 0;
         if (screenlayoutCount == 0) {
