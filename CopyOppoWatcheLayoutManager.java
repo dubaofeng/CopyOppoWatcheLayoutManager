@@ -48,7 +48,6 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
             removeAndRecycleAllViews(recycler);
             return;
         }
-//分离全部已有的view，放入临时缓存
         detachAndScrapAttachedViews(recycler);
         mLastItemPosition = getItemCount() - 1;
         itemWSize = getHorizontalSpace() / hCound;
@@ -88,7 +87,6 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
         if (mCurrentOffset >= totalOffset) {
             frac = 1f;
         }
-        Log.i(TAG, "frac==" + frac + "yu==" + yu);
         int scrollY = (int) (itemHSize * frac);
         int viewTopOffset = getPaddingTop() - mSetOffset;
         viewTopOffset -= scrollY;//偏移量
@@ -97,7 +95,6 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
         int lastScreenLayoutOffset = (vCount - 1) * itemHSize;
         int lastEndLineStartOffset2 = lastEndLineStartOffset;
         int oneLineStartOffset = 0;
-//修正第一个可见的view：mFirstVisiPos。已经滑动了多少个完整的onceCompleteScrollLength就代表滑动了多少个item
         int fs = (int) Math.floor(Math.abs(mCurrentOffset) / itemHSize) * hCound;
         if (fs <= getItemCount() - 1) {
             mFirsItemPosition = fs;
@@ -134,7 +131,6 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
             measureChildWithMargins(child, itemWSize * 2, itemHSize * 2);
             if (i - mFirsItemPosition < hCound) {
 //第一行
-                Log.i(TAG, "viewTopOffset==" + viewTopOffset + "dy==" + dy);
                 float realScale = 1f - (1f - minScale) * frac;
                 if (realScale > 1f) {
                     realScale = 1f;
@@ -168,10 +164,6 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
                 }
             } else if (i > mLastItemPosition - buttomItemCount && i >= screenlayoutCount) {
                 //画底部小圆
-                if (i == 12) {
-                    Log.i("viewTopOffset12=", "viewTopOffset=" + viewTopOffset);
-                }
-
                 float realScale = minScale + (1f - minScale) * frac;
                 if (realScale < 0.3f) {
                     realScale = 0.3f;
@@ -323,12 +315,10 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
 
     @Override
     public int scrollVerticallyBy(int dy, RecyclerView.Recycler recycler, RecyclerView.State state) {
-//位移0、没有子View 不移动
         if (dy == 0 || getChildCount() == 0) {
             return 0;
         }
-        int realOffset = dy;//实际滑动的距离， 可能会在边界处被修复
-//边界修复代码
+        int realOffset = dy;//实际滑动的距离
         if (realOffset < 0) {//上边界
 
         } else if (realOffset > 0) {//下边界
@@ -346,7 +336,6 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
         } else {
         }
         fill(recycler, state, realOffset);
-
 //        offsetChildrenVertical(-realOffset);//滑动
         return realOffset;
     }
@@ -456,13 +445,11 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
             public void onAnimationUpdate(ValueAnimator animation) {
                 if (mCurrentOffset < 0) {
                     mCurrentOffset = (int) Math.floor(anstartOffset - (float) animation.getAnimatedValue());
-                    Log.i("AnimationCurrentOffset", "mCurrentOffset=" + mCurrentOffset + "animation.getAnimatedValue()==" + animation.getAnimatedValue() + "anstartOffset" + anstartOffset + "distance=" + distance);
                     if (mCurrentOffset >= totalOffset) {
                         mCurrentOffset = totalOffset - 1;
                     }
                 } else {
                     mCurrentOffset = (int) Math.ceil(anstartOffset + (float) animation.getAnimatedValue());
-                    Log.i("AnimationCurrentOffset", "mCurrentOffset=" + mCurrentOffset + "animation.getAnimatedValue()==" + animation.getAnimatedValue() + "anstartOffset" + anstartOffset + "distance=" + distance);
                     if (mCurrentOffset >= totalOffset) {
                         mCurrentOffset = totalOffset - 1;
                     }
