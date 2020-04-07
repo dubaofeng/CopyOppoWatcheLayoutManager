@@ -11,14 +11,13 @@ import android.view.animation.LinearInterpolator;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.List;
-import java.util.logging.Logger;
 
 public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
     private final String TAG = "MyLayout";
     private int itemHSize = -1;
     private int itemWSize = -1;
     private int hCound = 3;
-    private int vCount = 0;
+    private int vCount = 3;
     private int screenlayoutCount = 0;
     private int mvOffsetCount = 0;
 
@@ -51,18 +50,17 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
         detachAndScrapAttachedViews(recycler);
         mLastItemPosition = getItemCount() - 1;
         itemWSize = getHorizontalSpace() / hCound;
-
+        mSetOffset = getVerticalSpace() / (4) / 3;
         if (vCount == 0) {
             vCount = getVerticalSpace() / itemWSize;
             itemHSize = itemWSize;
-            mSetOffset = itemHSize;
         } else {
-            if (itemHSize == 0) {
-                itemHSize = getVerticalSpace() / vCount;
-                mSetOffset = itemHSize;
+            if (itemHSize == -1) {
+                itemHSize = (getVerticalSpace() - 2 * mSetOffset) / vCount;
+//
             }
         }
-        mSetOffset = 0;
+
         if (screenlayoutCount == 0) {
             screenlayoutCount = hCound * vCount;
         }
@@ -85,16 +83,18 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
         detachAndScrapAttachedViews(recycler);
 
         int leftOffset = getPaddingLeft();
-        float yu = (mCurrentOffset + 0f) % itemHSize;
-        float frac = yu / itemHSize;
+        float itemOffset = (mCurrentOffset + 0f) % itemHSize;
+        float frac = itemOffset / itemHSize;
         if (mCurrentOffset >= totalOffset) {
             frac = 1f;
         }
         int scrollY = (int) (itemHSize * frac);
-        int viewTopOffset = getPaddingTop() - mSetOffset;
+        int viewTopOffset = getPaddingTop() + mSetOffset;
         viewTopOffset -= scrollY;//偏移量
-        beforOneLineStartOffset = (int) -(itemHSize / 2 - itemHSize * minScale / 10);
-        int lastEndLineStartOffset = (vCount - 1) * itemHSize - beforOneLineStartOffset;
+
+        beforOneLineStartOffset = (int) -(itemHSize / 2 - itemHSize * minScale / 2);
+        int lastOffset = (vCount - 1) * itemHSize + mSetOffset;
+        int lastEndLineStartOffset = (vCount) * itemHSize + 2 * mSetOffset - (itemHSize + beforOneLineStartOffset);
         int lastScreenLayoutOffset = (vCount - 1) * itemHSize;
         int lastEndLineStartOffset2 = lastEndLineStartOffset;
         int oneLineStartOffset = 0;
@@ -114,6 +114,7 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
         }
 
         if (mFirsItemPosition >= hCound) {
+            //顶部小item
             for (int k = mFirsItemPosition - hCound; k < mFirsItemPosition; k++) {
                 View beforchild = recycler.getViewForPosition(k);
                 addView(beforchild);
@@ -133,73 +134,85 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
             addView(child);
             measureChildWithMargins(child, itemWSize * 2, itemHSize * 2);
             if (i - mFirsItemPosition < hCound) {
-//第一行
+                //第一行
                 float realScale = 1f - (1f - minScale) * frac;
+                if (viewTopOffset < mSetOffset) {
+                    //计算出滑动到小item的百分比
+                    realScale = 1f - (1f - minScale) * (mSetOffset - viewTopOffset) / Math.abs(mSetOffset - beforOneLineStartOffset);
+                }
                 if (realScale > 1f) {
                     realScale = 1f;
+                }
+                if (realScale < minScale) {
+                    realScale = minScale;
                 }
                 child.setScaleX(realScale);
                 child.setScaleY(realScale);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    //设置层级，item缩放滑动到小item时效果是覆盖在上面的
                     child.setTranslationZ(0);
                 }
-                oneLineStartOffset = 0;
-                if (viewTopOffset < -(itemHSize + beforOneLineStartOffset)) {
-                    oneLineStartOffset = viewTopOffset + (itemHSize + beforOneLineStartOffset);
+                oneLineStartOffset = viewTopOffset;
+                if (viewTopOffset <= beforOneLineStartOffset) {
+                    //上滑到此停住
+                    oneLineStartOffset = beforOneLineStartOffset;
                 }
-                if (viewTopOffset > 0) {
-                    oneLineStartOffset = viewTopOffset;
-                }
-                if (leftOffset + itemWSize <= getHorizontalSpace() + getPaddingLeft()) { //当前行还排列的下
+                if (leftOffset + itemWSize <= getHorizontalSpace() + getPaddingLeft()) { //当前行还排列的下，布局
                     layoutDecoratedWithMargins(child, leftOffset, oneLineStartOffset, leftOffset + itemWSize, oneLineStartOffset + itemHSize);
                     leftOffset += itemWSize;
-                } else {
-                    oneLineStartOffset = 0;
-                    if (viewTopOffset < -(itemHSize + beforOneLineStartOffset)) {
-                        oneLineStartOffset = viewTopOffset + (itemHSize + beforOneLineStartOffset);
-                    }
-                    if (viewTopOffset > 0) {
-                        oneLineStartOffset = viewTopOffset;
+                } else {//换行，布局
+                    oneLineStartOffset = viewTopOffset;
+                    if (viewTopOffset <= beforOneLineStartOffset) {
+                        //上滑到此停住
+                        oneLineStartOffset = beforOneLineStartOffset;
                     }
                     leftOffset = getPaddingLeft();
                     layoutDecoratedWithMargins(child, leftOffset, oneLineStartOffset, leftOffset + itemWSize, oneLineStartOffset + itemHSize);
                     leftOffset += itemWSize;
                 }
             } else if (i > mLastItemPosition - buttomItemCount && i >= screenlayoutCount) {
-                //画底部小圆
+                //画底部小圆，下滑时秒变正常大小item的最后一行，要注意
                 float realScale = minScale + (1f - minScale) * frac;
-                if (realScale < 0.3f) {
-                    realScale = 0.3f;
+                if (viewTopOffset < lastOffset) {
+                    //计算出滑动到小item的百分比
+                    realScale = minScale + (1f - minScale) * (lastOffset - viewTopOffset + beforOneLineStartOffset) / Math.abs(mSetOffset - beforOneLineStartOffset);
                 }
-
+                if (realScale > 1f) {
+                    realScale = 1f;
+                }
+                if (realScale < minScale) {
+                    realScale = minScale;
+                }
                 child.setScaleX(realScale);
                 child.setScaleY(realScale);
+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     child.setTranslationZ(1);
                 }
-                lastEndLineStartOffset = viewTopOffset - beforOneLineStartOffset;
-                if (viewTopOffset - beforOneLineStartOffset <= (vCount - 1) * itemHSize) {
-                    lastEndLineStartOffset = (vCount - 1) * itemHSize;
+                lastEndLineStartOffset = lastEndLineStartOffset2;//固定住底部小item
+                if (viewTopOffset <= lastEndLineStartOffset2 - itemHSize) {//上滑时跟随上滑
+                    lastEndLineStartOffset = viewTopOffset + itemHSize;
                 }
-                if (lastEndLineStartOffset > (vCount - 1) * itemHSize - beforOneLineStartOffset) {
-                    lastEndLineStartOffset = (vCount - 1) * itemHSize - beforOneLineStartOffset;
+                if (lastEndLineStartOffset > lastEndLineStartOffset2) {//下滑时固定
+                    lastEndLineStartOffset = lastEndLineStartOffset2;
                 }
-                if (mCurrentOffset > totalOffset - itemHSize - 1) {
+                if (mCurrentOffset > totalOffset - itemHSize - 1) {//最后一行正常大小显示
                     lastEndLineStartOffset = viewTopOffset + itemHSize;
                     child.setScaleX(1f);
                     child.setScaleY(1f);
                 }
+
                 if (leftOffset + itemWSize <= getHorizontalSpace() + getPaddingLeft()) { //当前行还排列的下
                     layoutDecoratedWithMargins(child, leftOffset, lastEndLineStartOffset, leftOffset + itemWSize, lastEndLineStartOffset + itemHSize);
                     leftOffset += itemWSize;
-                } else {
+                } else {//换行布局
                     leftOffset = getPaddingLeft();
-                    lastEndLineStartOffset = viewTopOffset - beforOneLineStartOffset;
-                    if (viewTopOffset - beforOneLineStartOffset <= (vCount - 1) * itemHSize) {
-                        lastEndLineStartOffset = (vCount - 1) * itemHSize;
+                    lastEndLineStartOffset = lastEndLineStartOffset2;
+                    if (viewTopOffset <= lastEndLineStartOffset2 - itemHSize) {
+                        lastEndLineStartOffset = viewTopOffset + itemHSize;
                     }
-                    if (lastEndLineStartOffset > (vCount - 1) * itemHSize - beforOneLineStartOffset) {
-                        lastEndLineStartOffset = (vCount - 1) * itemHSize - beforOneLineStartOffset;
+                    if (lastEndLineStartOffset > lastEndLineStartOffset2) {
+                        lastEndLineStartOffset = lastEndLineStartOffset2;
                     }
                     if (mCurrentOffset > totalOffset - itemHSize - 1) {
                         lastEndLineStartOffset = viewTopOffset + itemHSize;
@@ -210,22 +223,26 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
                     leftOffset += itemWSize;
                 }
 
-            } else {
+            } else {//正常大小item的第二行到倒数第二行
                 lastScreenLayoutOffset = viewTopOffset;
-                child.setScaleX(1f);
+                child.setScaleX(1f);//设置正常缩放大小，如过不设置，会出现小的item在不正确的位置
                 child.setScaleY(1f);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    child.setTranslationZ(1);
+                    child.setTranslationZ(1);//
                 }
-                if (mCurrentOffset < 0) {
-                    if (viewTopOffset > (vCount - 1) * itemHSize) {
-                        lastScreenLayoutOffset = (vCount - 1) * itemHSize;
-                        if (viewTopOffset - (itemHSize + beforOneLineStartOffset) >= (vCount - 1) * itemHSize) {
-                            lastScreenLayoutOffset = viewTopOffset - (itemHSize + beforOneLineStartOffset);
+                if (mCurrentOffset < 0) {//控制最开始的第一行下滑最多一个item的高度
+                    if (viewTopOffset > lastOffset) {
+                        lastScreenLayoutOffset = viewTopOffset;
+                        if (viewTopOffset >= lastEndLineStartOffset2) {
+                            lastScreenLayoutOffset = lastEndLineStartOffset2;
                         }
-                        float realScale = 1f + (1f - minScale) * frac;
+                        float realScale = 1f - (1f - minScale) * frac;
+                        realScale = 1f - (1f - minScale) * (viewTopOffset - lastOffset) / Math.abs(mSetOffset - beforOneLineStartOffset);
                         if (realScale > 1f) {
                             realScale = 1f;
+                        }
+                        if (realScale < minScale) {
+                            realScale = minScale;
                         }
                         child.setScaleX(realScale);
                         child.setScaleY(realScale);
@@ -244,15 +261,18 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
                     viewTopOffset += itemHSize;
                     lastScreenLayoutOffset = viewTopOffset;
                     if (mCurrentOffset < 0) {
-
-                        if (viewTopOffset > (vCount - 1) * itemHSize) {
-                            lastScreenLayoutOffset = (vCount - 1) * itemHSize;
-                            if (viewTopOffset - (itemHSize + beforOneLineStartOffset) >= (vCount - 1) * itemHSize) {
-                                lastScreenLayoutOffset = viewTopOffset - (itemHSize + beforOneLineStartOffset);
+                        if (viewTopOffset > lastOffset) {
+                            lastScreenLayoutOffset = viewTopOffset;
+                            if (viewTopOffset >= lastEndLineStartOffset2) {
+                                lastScreenLayoutOffset = lastEndLineStartOffset2;
                             }
-                            float realScale = 1f + (1f - minScale) * frac;
+                            float realScale = 1f - (1f - minScale) * frac;
+                            realScale = 1f - (1f - minScale) * (viewTopOffset - lastOffset) / Math.abs(mSetOffset - beforOneLineStartOffset);
                             if (realScale > 1f) {
                                 realScale = 1f;
+                            }
+                            if (realScale < minScale) {
+                                realScale = minScale;
                             }
                             child.setScaleX(realScale);
                             child.setScaleY(realScale);
@@ -272,7 +292,7 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
         leftOffset = getPaddingLeft();
         if (mLastItemPosition + hCound < getItemCount()) {
             for (int i = mLastItemPosition + 1; i <= mLastItemPosition + hCound; i++) {
-                //画底部小圆
+                //画底部小圆，留在底部不跟着上画的小item
                 View child = recycler.getViewForPosition(i);
                 addView(child);
                 measureChildWithMargins(child, itemWSize * 2, itemHSize * 2);
@@ -339,7 +359,7 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
         } else {
         }
         fill(recycler, state, realOffset);
-//        offsetChildrenVertical(-realOffset);//滑动
+// offsetChildrenVertical(-realOffset);//滑动
         return realOffset;
     }
 
