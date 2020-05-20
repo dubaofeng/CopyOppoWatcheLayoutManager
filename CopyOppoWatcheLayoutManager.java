@@ -71,7 +71,7 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
         if (screenItemCount == 0) {
             screenItemCount = hCount * vCount;
         }
-        if (mvOffsetCount == 0) {
+      
             mvOffsetCount = (int) Math.ceil((getItemCount() + 0f) / hCount);
             int screenOffsetCount = (screenItemCount) / hCount;
             if (mvOffsetCount > screenOffsetCount) {
@@ -79,8 +79,8 @@ public class CopyOppoWatcheLayoutManager extends RecyclerView.LayoutManager {
             } else {
                 mvOffsetCount = 0;
             }
-            totalOffset = mvOffsetCount * itemHSize + itemHSize;
-        }
+            totalOffset = mvOffsetCount * itemHSize + itemHSize-1;
+        
 
         fill(recycler, state, 0);
         recycleChildren(recycler);
